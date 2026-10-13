@@ -1,0 +1,897 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#080910">
+  <title>AI Стилист — твой новый образ</title>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <style>
+    :root {
+      --bg: #080910;
+      --panel: #11131f;
+      --text: #f5f5ff;
+      --muted: #9294ad;
+      --purple: #a855f7;
+      --cyan: #52e5ff;
+      --border: rgba(255,255,255,.09);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at 50% -10%, #33205d 0%, transparent 48%),
+        var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+
+    .app {
+      width: 100%;
+      max-width: 480px;
+      min-height: 100vh;
+      margin: auto;
+      padding: 22px 20px 34px;
+      overflow: hidden;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 34px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -.5px;
+    }
+
+    .logo {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 13px;
+      background: linear-gradient(135deg, var(--purple), #5c5bff 65%, var(--cyan));
+      box-shadow: 0 0 25px #a855f744;
+      font-size: 21px;
+    }
+
+    .badge {
+      color: var(--cyan);
+      background: #52e5ff12;
+      border: 1px solid #52e5ff33;
+      padding: 7px 10px;
+      border-radius: 30px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+
+    .screen { display: none; animation: appear .4s ease; }
+    .screen.active { display: block; }
+
+    @keyframes appear {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .eyebrow {
+      color: var(--cyan);
+      text-transform: uppercase;
+      letter-spacing: 2.5px;
+      font-size: 10px;
+      font-weight: 800;
+      margin-bottom: 13px;
+    }
+
+    h1 {
+      font-size: clamp(35px, 10vw, 48px);
+      line-height: 1.06;
+      letter-spacing: -2px;
+      margin: 0 0 16px;
+    }
+
+    .gradient {
+      background: linear-gradient(95deg, #c59aff, #7cdeff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+      margin: 0 0 26px;
+    }
+
+    .upload-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 290px;
+      border: 1px dashed #9b71e977;
+      border-radius: 24px;
+      background:
+        radial-gradient(ellipse at 50% 40%, #853dcb20, transparent 60%),
+        #11121c;
+      overflow: hidden;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .upload-card::before, .upload-card::after {
+      content: "";
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      border: 1px solid #a855f722;
+      border-radius: 50%;
+    }
+
+    .upload-card::before { top: -50px; left: -45px; }
+    .upload-card::after { bottom: -55px; right: -40px; }
+
+    .upload-icon {
+      display: grid;
+      place-items: center;
+      width: 78px;
+      height: 78px;
+      margin-bottom: 20px;
+      border-radius: 25px;
+      background: linear-gradient(135deg, #a855f729, #52e5ff12);
+      border: 1px solid #b18cff55;
+      font-size: 34px;
+      box-shadow: 0 0 40px #a855f71a;
+    }
+
+    .upload-card h3 { margin: 0 0 9px; font-size: 17px; }
+    .upload-card p {
+      max-width: 260px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .photo-preview {
+      display: none;
+      width: 100%;
+      max-height: 260px;
+      object-fit: contain;
+      border-radius: 15px;
+      margin-bottom: 15px;
+    }
+
+    .primary {
+      width: 100%;
+      min-height: 56px;
+      border: 0;
+      border-radius: 16px;
+      color: white;
+      font-weight: 800;
+      font-size: 14px;
+      letter-spacing: .1px;
+      background: linear-gradient(105deg, #9b4dff, #735cff 55%, #4d9fff);
+      box-shadow: 0 8px 30px #8556ff35;
+      transition: transform .2s, opacity .2s;
+    }
+
+    .primary:active { transform: scale(.98); }
+    .primary:disabled { opacity: .45; cursor: not-allowed; }
+
+    .upload-btn { margin-top: 18px; }
+
+    .secondary {
+      width: 100%;
+      min-height: 48px;
+      margin-top: 10px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      color: var(--text);
+      background: #ffffff07;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .privacy {
+      text-align: center;
+      color: #72748b;
+      font-size: 11px;
+      margin-top: 18px;
+    }
+
+    .steps {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 28px;
+    }
+
+    .step {
+      height: 3px;
+      flex: 1;
+      border-radius: 9px;
+      background: #272838;
+    }
+
+    .step.done {
+      background: linear-gradient(90deg, var(--purple), var(--cyan));
+    }
+
+    /* SCANNER */
+
+    .scan-frame {
+      position: relative;
+      display: grid;
+      place-items: center;
+      height: 320px;
+      border-radius: 24px;
+      background: #11131f;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-bottom: 25px;
+    }
+
+    .scan-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      opacity: .7;
+    }
+
+    .scan-frame::before {
+      content: "";
+      position: absolute;
+      inset: 18px;
+      border: 1px solid #a855f744;
+      border-radius: 16px;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .scan-line {
+      position: absolute;
+      z-index: 3;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan), 0 0 35px var(--purple);
+      animation: scan 2.2s ease-in-out infinite alternate;
+    }
+
+    @keyframes scan {
+      from { top: 0; }
+      to { top: calc(100% - 3px); }
+    }
+
+    .scan-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      background: linear-gradient(transparent, #a855f70a, transparent);
+      pointer-events: none;
+    }
+
+    .scan-corners {
+      position: absolute;
+      inset: 28px;
+      z-index: 3;
+      border: 1px solid #52e5ff25;
+      border-radius: 12px;
+      pointer-events: none;
+    }
+
+    .scan-title { text-align: center; font-size: 21px; margin: 0 0 9px; }
+    .scan-copy {
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 0 25px;
+    }
+
+    .analysis-list { display: grid; gap: 14px; }
+
+    .analysis-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      background: #ffffff04;
+      border-radius: 14px;
+      color: #85879e;
+      font-size: 13px;
+      transition: .3s;
+    }
+
+    .analysis-row.current {
+      color: white;
+      border-color: #a855f755;
+      background: #a855f710;
+    }
+
+    .analysis-row.complete { color: #7cf0d2; }
+
+    .analysis-icon { font-size: 19px; }
+    .analysis-status { margin-left: auto; font-size: 11px; }
+
+    .progress-track {
+      height: 4px;
+      border-radius: 9px;
+      overflow: hidden;
+      background: #272838;
+      margin: 22px 0 8px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--purple), var(--cyan));
+      box-shadow: 0 0 15px var(--cyan);
+      transition: width .5s ease;
+    }
+
+    .progress-label {
+      text-align: right;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    /* RESULT */
+
+    .result-heading {
+      font-size: 34px;
+      line-height: 1.1;
+      letter-spacing: -1.5px;
+      margin-bottom: 10px;
+    }
+
+    .result-intro { margin-bottom: 23px; }
+
+    .result-hero {
+      position: relative;
+      padding: 21px;
+      margin-bottom: 14px;
+      border: 1px solid #a855f744;
+      border-radius: 22px;
+      background: radial-gradient(ellipse at 100% 0%, #7747a82b, transparent 55%), #12131f;
+      overflow: hidden;
+    }
+
+    .result-hero .eyebrow { margin-bottom: 10px; }
+    .result-hero h2 { font-size: 25px; margin: 0 0 8px; letter-spacing: -.6px; }
+    .result-hero p {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+      margin: 0;
+    }
+
+    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .result-card {
+      min-width: 0;
+      padding: 16px 14px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 17px;
+    }
+
+    .card-icon { font-size: 22px; margin-bottom: 13px; }
+    .card-label {
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .card-value { font-size: 15px; font-weight: 800; margin-bottom: 7px; }
+    .card-desc { font-size: 11px; line-height: 1.6; color: var(--muted); }
+
+    .colors { display: flex; gap: 7px; margin-top: 13px; }
+    .color-dot {
+      width: 23px;
+      height: 23px;
+      border-radius: 50%;
+      border: 2px solid #ffffff22;
+    }
+
+    .tips-card {
+      margin-top: 14px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--panel);
+    }
+
+    .tips-title { font-size: 17px; font-weight: 800; margin-bottom: 17px; }
+
+    .tip {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-top: 15px;
+    }
+
+    .tip-number {
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      border-radius: 9px;
+      color: var(--cyan);
+      background: #52e5ff12;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .tip strong { display: block; font-size: 13px; margin: 1px 0 5px; }
+    .tip p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+
+    .share-btn { margin-top: 20px; min-height: 62px; }
+    .share-btn span { display: block; font-size: 10px; font-weight: 500; opacity: .8; margin-top: 4px; }
+    .disclaimer { color: #73758b; text-align: center; font-size: 10px; line-height: 1.6; margin: 13px 4px 0; }
+
+    .toast {
+      position: fixed;
+      z-index: 10;
+      left: 50%;
+      bottom: 24px;
+      transform: translate(-50%, 20px);
+      width: max-content;
+      max-width: 90%;
+      padding: 13px 18px;
+      border-radius: 13px;
+      background: #202235;
+      border: 1px solid #ffffff22;
+      box-shadow: 0 8px 35px #0008;
+      font-size: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: .3s;
+    }
+
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (min-width: 600px) {
+      body { padding: 20px 0; }
+      .app {
+        min-height: auto;
+        border: 1px solid #ffffff10;
+        border-radius: 28px;
+        background: #080910cc;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">✳</div>
+        <span>AI <span class="gradient">СТИЛИСТ</span></span>
+      </div>
+      <div class="badge">BETA · AI</div>
+    </header>
+
+    <div class="steps" aria-label="Этапы анализа">
+      <div class="step done" id="step1"></div>
+      <div class="step" id="step2"></div>
+      <div class="step" id="step3"></div>
+    </div>
+
+    <!-- STEP 1 -->
+    <section class="screen active" id="uploadScreen">
+      <div class="eyebrow">✦ ТВОЙ ПЕРСОНАЛЬНЫЙ СТИЛИСТ</div>
+      <h1>Найди свой<br><span class="gradient">идеальный образ.</span></h1>
+      <p class="subtitle">
+        Загрузи фотографию — получи персональные рекомендации по причёске,
+        цветам и стилю в одном месте.
+      </p>
+
+      <div class="upload-card" id="uploadCard">
+        <img id="preview" class="photo-preview" alt="Предпросмотр фотографии">
+        <div class="upload-icon" id="uploadIcon">✧</div>
+        <h3 id="uploadTitle">Начнём с твоего фото</h3>
+        <p id="uploadText">Лучше всего подойдёт чёткое фото лица при хорошем освещении.</p>
+      </div>
+
+      <input id="photoInput" type="file" accept="image/*" hidden>
+
+      <button class="primary upload-btn" id="chooseBtn">
+        ＋ Загрузить селфи / фото
+      </button>
+      <button class="secondary" id="analyzeBtn" disabled>
+        ✦ Проанализировать мой стиль
+      </button>
+
+      <div class="privacy">🔒 Фото обрабатывается локально в демоверсии</div>
+    </section>
+
+    <!-- STEP 2 -->
+    <section class="screen" id="scanScreen">
+      <div class="eyebrow">✦ AI STYLE ENGINE</div>
+      <h1 style="font-size:35px">Создаём твой<br><span class="gradient">стиль-код.</span></h1>
+      <p class="subtitle">Подготавливаем персональную подборку рекомендаций.</p>
+
+      <div class="scan-frame">
+        <img id="scanImage" alt="Фото для демонстрации сканирования">
+        <div class="scan-overlay"></div>
+        <div class="scan-line"></div>
+        <div class="scan-corners"></div>
+      </div>
+
+      <h2 class="scan-title" id="scanTitle">Запускаем анализ...</h2>
+      <p class="scan-copy" id="scanCopy">Это займёт несколько секунд</p>
+
+      <div class="analysis-list">
+        <div class="analysis-row current" id="analysis1">
+          <span class="analysis-icon">◈</span>
+          <span>Определяем форму лица...</span>
+          <span class="analysis-status">•••</span>
+        </div>
+        <div class="analysis-row" id="analysis2">
+          <span class="analysis-icon">✂</span>
+          <span>Анализируем стрижку...</span>
+          <span class="analysis-status">ОЖИДАНИЕ</span>
+        </div>
+        <div class="analysis-row" id="analysis3">
+          <span class="analysis-icon">◉</span>
+          <span>Подбираем цвета...</span>
+          <span class="analysis-status">ОЖИДАНИЕ</span>
+        </div>
+      </div>
+
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">0%</div>
+    </section>
+
+    <!-- STEP 3 -->
+    <section class="screen" id="resultScreen">
+      <div class="eyebrow">✦ ТВОЙ STYLE REPORT</div>
+      <h1 class="result-heading">Твой образ.<br><span class="gradient">Новые возможности.</span></h1>
+      <p class="subtitle result-intro">Твоя демонстрационная подборка рекомендаций готова.</p>
+
+      <div class="result-hero">
+        <div class="eyebrow">✧ STYLE IDENTITY</div>
+        <h2>Modern Minimalist</h2>
+        <p>Чистые линии, продуманные детали и гармоничная цветовая палитра — отправная точка для твоего нового образа.</p>
+      </div>
+
+      <div class="result-grid">
+        <article class="result-card">
+          <div class="card-icon">◈</div>
+          <div class="card-label">Форма лица</div>
+          <div class="card-value">Определи по фото</div>
+          <div class="card-desc">Точная форма не распознаётся в демоверсии. Выбирай рекомендации с учётом своих особенностей.</div>
+        </article>
+
+        <article class="result-card">
+          <div class="card-icon">✂</div>
+          <div class="card-label">Причёска</div>
+          <div class="card-value">Textured Crop</div>
+          <div class="card-desc">Вариант для вдохновения: текстурированная стрижка с естественным объёмом.</div>
+        </article>
+
+        <article class="result-card" style="grid-column:1 / -1">
+          <div class="card-icon">◉</div>
+          <div class="card-label">Подходящие цвета</div>
+          <div class="card-value">Urban Neutrals</div>
+          <div class="card-desc">Универсальная палитра для экспериментов с повседневным гардеробом.</div>
+          <div class="colors">
+            <div class="color-dot" style="background:#171923" title="Графит"></div>
+            <div class="color-dot" style="background:#e6e0d6" title="Молочный"></div>
+            <div class="color-dot" style="background:#7186a4" title="Стальной синий"></div>
+            <div class="color-dot" style="background:#75806c" title="Оливковый"></div>
+            <div class="color-dot" style="background:#9b7b70" title="Тёплый коричневый"></div>
+          </div>
+        </article>
+      </div>
+
+      <div class="tips-card">
+        <div class="tips-title">✦ 3 совета по стилю</div>
+
+        <div class="tip">
+          <div class="tip-number">01</div>
+          <div>
+            <strong>Собери базу</strong>
+            <p>Начни с нескольких универсальных вещей, которые сочетаются между собой.</p>
+          </div>
+        </div>
+
+        <div class="tip">
+          <div class="tip-number">02</div>
+          <div>
+            <strong>Экспериментируй с текстурами</strong>
+            <p>Сочетай гладкие ткани, деним и трикотаж, чтобы добавить образу глубины.</p>
+          </div>
+        </div>
+
+        <div class="tip">
+          <div class="tip-number">03</div>
+          <div>
+            <strong>Добавь одну акцентную деталь</strong>
+            <p>Часы, сумка или лаконичный аксессуар могут объединить весь образ.</p>
+          </div>
+        </div>
+      </div>
+
+      <button class="primary share-btn" id="shareBtn">
+        ↗ Поделиться результатом с другом в Telegram
+        <span>Отправь другу свой Style Report</span>
+      </button>
+
+      <button class="secondary" id="restartBtn">↻ Попробовать другое фото</button>
+
+      <p class="disclaimer">
+        Это демонстрационный отчёт. Реальные персональные выводы потребуют
+        подключения модели анализа изображений.
+      </p>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    (() => {
+      const tg = window.Telegram?.WebApp;
+
+      if (tg) {
+        tg.ready();
+        tg.expand();
+        try {
+          tg.setHeaderColor('#080910');
+          tg.setBackgroundColor('#080910');
+        } catch (_) {}
+      }
+
+      const $ = id => document.getElementById(id);
+
+      const screens = {
+        upload: $('uploadScreen'),
+        scan: $('scanScreen'),
+        result: $('resultScreen')
+      };
+
+      let photoUrl = '';
+      let scanTimers = [];
+      let toastTimer;
+
+      function showScreen(name) {
+        Object.values(screens).forEach(s => s.classList.remove('active'));
+        screens[name].classList.add('active');
+
+        ['step1', 'step2', 'step3'].forEach((id, i) => {
+          $(id).classList.toggle(
+            'done',
+            i <= ['upload', 'scan', 'result'].indexOf(name)
+          );
+        });
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      function toast(message) {
+        const el = $('toast');
+        el.textContent = message;
+        el.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+      }
+
+      function clearScanTimers() {
+        scanTimers.forEach(clearTimeout);
+        scanTimers = [];
+      }
+
+      $('chooseBtn').addEventListener('click', () => {
+        $('photoInput').click();
+      });
+
+      $('uploadCard').addEventListener('click', () => {
+        $('photoInput').click();
+      });
+
+      $('photoInput').addEventListener('change', event => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+          toast('Пожалуйста, выбери изображение.');
+          return;
+        }
+
+        if (file.size > 12 * 1024 * 1024) {
+          toast('Выбери изображение размером до 12 МБ.');
+          event.target.value = '';
+          return;
+        }
+
+        if (photoUrl) URL.revokeObjectURL(photoUrl);
+        photoUrl = URL.createObjectURL(file);
+
+        $('preview').src = photoUrl;
+        $('preview').style.display = 'block';
+        $('uploadIcon').style.display = 'none';
+        $('uploadTitle').textContent = 'Фото загружено ✓';
+        $('uploadText').textContent = 'Можешь продолжить или выбрать другое фото.';
+        $('analyzeBtn').disabled = false;
+        $('chooseBtn').textContent = '↻ Выбрать другое фото';
+      });
+
+      function setAnalysisState(index, state) {
+        const el = $('analysis' + index);
+        el.classList.remove('current', 'complete');
+
+        const status = el.querySelector('.analysis-status');
+
+        if (state === 'current') {
+          el.classList.add('current');
+          status.textContent = '•••';
+        } else if (state === 'complete') {
+          el.classList.add('complete');
+          status.textContent = '✓ ГОТОВО';
+        } else {
+          status.textContent = 'ОЖИДАНИЕ';
+        }
+      }
+
+      function startAnalysis() {
+        if (!photoUrl) {
+          toast('Сначала загрузи фотографию.');
+          return;
+        }
+
+        clearScanTimers();
+        showScreen('scan');
+
+        $('scanImage').src = photoUrl;
+        $('progressFill').style.width = '0%';
+        $('progressLabel').textContent = '0%';
+        $('scanTitle').textContent = 'Запускаем анализ...';
+        $('scanCopy').textContent = 'Это займёт несколько секунд';
+
+        [1, 2, 3].forEach(i => setAnalysisState(i, 'waiting'));
+        setAnalysisState(1, 'current');
+
+        const stages = [
+          {
+            time: 500,
+            index: 1,
+            progress: 20,
+            title: 'Изучаем пропорции...',
+            copy: 'Демонстрация этапа определения формы лица'
+          },
+          {
+            time: 1700,
+            index: 2,
+            progress: 52,
+            title: 'Подбираем причёску...',
+            copy: 'Демонстрация этапа анализа стрижки'
+          },
+          {
+            time: 3000,
+            index: 3,
+            progress: 82,
+            title: 'Создаём палитру...',
+            copy: 'Демонстрация этапа подбора цветов'
+          },
+          {
+            time: 4300,
+            index: 3,
+            progress: 100,
+            title: 'Подборка готова!',
+            copy: 'Открываем демонстрационный Style Report'
+          }
+        ];
+
+        stages.forEach(stage => {
+          const timer = setTimeout(() => {
+            if (!$('scanScreen').classList.contains('active')) return;
+
+            if (stage.index > 1) {
+              setAnalysisState(stage.index - 1, 'complete');
+            }
+
+            setAnalysisState(stage.index, 'current');
+            $('progressFill').style.width = stage.progress + '%';
+            $('progressLabel').textContent = stage.progress + '%';
+            $('scanTitle').textContent = stage.title;
+            $('scanCopy').textContent = stage.copy;
+
+            if (stage.progress === 100) {
+              setAnalysisState(3, 'complete');
+              setTimeout(() => {
+                if ($('scanScreen').classList.contains('active')) {
+                  showScreen('result');
+                }
+              }, 450);
+            }
+          }, stage.time);
+
+          scanTimers.push(timer);
+        });
+      }
+
+      $('analyzeBtn').addEventListener('click', startAnalysis);
+
+      $('shareBtn').addEventListener('click', () => {
+        const message =
+          '✦ Мой AI Style Report\n\n' +
+          'Мой стиль: Modern Minimalist\n' +
+          'Причёска для вдохновения: Textured Crop\n' +
+          'Цветовая палитра: Urban Neutrals\n\n' +
+          'Я попробовал AI Стилист — попробуй и ты!';
+
+        const shareUrl =
+          'https://t.me/share/url?url=' +
+          encodeURIComponent('https://t.me/') +
+          '&text=' +
+          encodeURIComponent(message);
+
+        if (tg?.openTelegramLink) {
+          tg.openTelegramLink(shareUrl);
+        } else {
+          window.open(shareUrl, '_blank', 'noopener,noreferrer');
+        }
+      });
+
+      $('restartBtn').addEventListener('click', () => {
+        clearScanTimers();
+
+        if (photoUrl) {
+          URL.revokeObjectURL(photoUrl);
+          photoUrl = '';
+        }
+
+        $('photoInput').value = '';
+        $('preview').removeAttribute('src');
+        $('preview').style.display = 'none';
+        $('uploadIcon').style.display = 'grid';
+        $('uploadTitle').textContent = 'Начнём с твоего фото';
+        $('uploadText').textContent =
+          'Лучше всего подойдёт чёткое фото лица при хорошем освещении.';
+        $('chooseBtn').textContent = '＋ Загрузить селфи / фото';
+        $('analyzeBtn').disabled = true;
+
+        showScreen('upload');
+      });
+
+      window.addEventListener('beforeunload', () => {
+        clearScanTimers();
+        if (photoUrl) URL.revokeObjectURL(photoUrl);
+      });
+    })();
+  </script>
+</body>
+</html>
